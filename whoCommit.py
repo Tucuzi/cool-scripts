@@ -3,6 +3,34 @@ import os
 import sys
 import optparse
 
+dirpath_sepline="**********************************"
+author_sepline="=================================="
+
+class bcolors:
+        OKPINK = '\033[95m' #pink
+        OKCYANINE = '\033[96m' 
+        OKBLUE = '\033[94m' #blue
+        OKGREEN = '\033[92m' #green
+        OKYELLOW = '\033[93m' #yellow
+        OKRED = '\033[91m' #
+        ENDC = '\033[0m'
+        BOLD = '\033[1m'
+        UNDERLINE = '\033[4m'
+        def printDir(strr):
+            print(bcolors.OKGREEN+strr+bcolors.ENDC)
+        def printDirsep():
+            print(bcolors.BOLD+dirpath_sepline+bcolors.ENDC)
+        def printAuthsep():
+            print(bcolors.BOLD+authorpath_sepline+bcolors.ENDC)
+        def printFile(str):
+            print(bcolors.UNDERLINE+str+bcolors.ENDC)
+        def printAuthor(str):
+            print(bcolors.OKBLUE+str+bcolors.ENDC)
+        def printWarning(str):
+            print(bcolors.OKYELLOW+str+bcolors.ENDC)
+        def printComment(str):
+            print(bcolors.OKCYANINE +str+bcolors.ENDC)
+
 list_optparse = optparse.OptionParser(usage="usage: whoCommit.py -p [project path] -d [since date]")
 
 group = list_optparse.add_option_group('Dispaly commitors options')
@@ -21,7 +49,9 @@ group.add_option('-i', '--info',
 def usage():
     list_optparse.print_help()
 
-def display_author_commit(authors, date):
+def display_author_commit(authors, date, path):
+    bcolors.printDir(path)
+    bcolors.printDirsep()
     for author in authors:
      an="'"+author+"'"
      cmd = 'git log --pretty="" --since=' + date + ' --author=' + an + ' --name-only' + '|sort|uniq'
@@ -29,9 +59,9 @@ def display_author_commit(authors, date):
      cmd = 'git log --pretty="%ae" --since=' + date  + ' --author=' + an + '|sort|uniq'
      author_email = os.popen(cmd).read()
      author_email = author_email.strip('\n')
-     print(author + " " + "<" +author_email + ">")
-     print("==========================")
-     print(modified_files)
+     bcolors.printAuthor(author + " " + "<" +author_email + ">")
+     bcolors.printAuthsep()
+     bcolors.printFile(path+modified_files)
 
 def display_info(authors, date, path):
     an_num=authors.__len__()
@@ -39,9 +69,13 @@ def display_info(authors, date, path):
     fstr = os.popen(cmd).read()
     mfiles = fstr.split('\n')
     mfiles.remove('')
-    fnum=mfiles.__len__() 
-    print("Since " + date + ":",an_num,"authors modified",fnum, "files"+" @"+path)
-    
+    fnum=mfiles.__len__()
+    bcolors.printDir(path)
+    print(bcolors.OKCYANINE +"Since " + date + ":",an_num,"authors modified",fnum, "files"+bcolors.ENDC)
+    bcolors.printDirsep()
+    for author in authors:
+        bcolors.printAuthor(author)
+    print("")
 
 def main(orig_args):
     opt, args = list_optparse.parse_args(orig_args)
@@ -58,21 +92,38 @@ def main(orig_args):
     if not since_date:
         list_optparse.print_usage()
         sys.exit(1)
- 
-    os.chdir(project_path)
-    cmd = 'git log --pretty="%an" --since=' + since_date + '|sort|uniq'
-    authors_str = os.popen(cmd).read()
-    authors=authors_str.split("\n")
-    authors.remove('')
-    authors_num = authors.__len__()
-    if authors_num < 1:
-        print("No bady commit since "+since_date+" at "+project_path)
-        sys.exit(0)
 
-    if opt.info == True:
-	    display_info(authors,since_date,project_path)
-    else:
-        display_author_commit(authors,since_date)
+    os.chdir(project_path)
+    project_path = os.getcwd()
+    cut_str ="|cut -d '\"' -f2"
+    cmd = 'cat .repo/manifest.xml' + '|grep project' + "|awk {'print $2'}"  + cut_str
+    pathes = os.popen(cmd).read()
+    pathes = pathes.split('\n')
+    pathes.remove('')
+
+    if pathes == "":
+     print("No valid manifest found! ")
+     sys.exit(0)
+
+    for gdir in pathes:
+        os.chdir(gdir)
+        cmd = 'git log --pretty="%an" --since=' + since_date + '|sort|uniq'
+        authors_str = os.popen(cmd).read()
+        authors=authors_str.split("\n")
+        authors.remove('')
+        authors_num = authors.__len__()
+        if authors_num < 1:
+         bcolors.printWarning("No bady commit since "+since_date+" @ ")
+         print("")
+         os.chdir(project_path)
+         continue
+        else:
+         if opt.info == True:
+          display_info(authors,since_date,gdir)
+         else:
+          display_author_commit(authors,since_date,gdir)
+
+        os.chdir(project_path)
 
     sys.exit(1)
 
