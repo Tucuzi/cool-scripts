@@ -19,9 +19,9 @@ class bcolors:
         def printDir(strr):
             print(bcolors.OKGREEN+strr+bcolors.ENDC)
         def printDirsep():
-            print(bcolors.BOLD+dirpath_sepline+bcolors.ENDC)
+            print(bcolors.BOLD+bcolors.OKCYANINE +dirpath_sepline+bcolors.ENDC)
         def printAuthsep():
-            print(bcolors.BOLD+authorpath_sepline+bcolors.ENDC)
+            print(bcolors.BOLD+author_sepline+bcolors.ENDC)
         def printFile(str):
             print(bcolors.UNDERLINE+str+bcolors.ENDC)
         def printAuthor(str):
@@ -55,13 +55,17 @@ def display_author_commit(authors, date, path):
     for author in authors:
      an="'"+author+"'"
      cmd = 'git log --pretty="" --since=' + date + ' --author=' + an + ' --name-only' + '|sort|uniq'
-     modified_files = os.popen(cmd).read()
+     files = os.popen(cmd).read()
+     modified_files = files.split('\n')
+     modified_files.remove('')
      cmd = 'git log --pretty="%ae" --since=' + date  + ' --author=' + an + '|sort|uniq'
      author_email = os.popen(cmd).read()
      author_email = author_email.strip('\n')
      bcolors.printAuthor(author + " " + "<" +author_email + ">")
      bcolors.printAuthsep()
-     bcolors.printFile(path+modified_files)
+     for mfile in modified_files:
+      bcolors.printFile(path+mfile)
+     print('')
 
 def display_info(authors, date, path):
     an_num=authors.__len__()
@@ -95,14 +99,23 @@ def main(orig_args):
 
     os.chdir(project_path)
     project_path = os.getcwd()
-    cut_str ="|cut -d '\"' -f2"
-    cmd = 'cat .repo/manifest.xml' + '|grep project' + "|awk {'print $2'}"  + cut_str
-    pathes = os.popen(cmd).read()
-    pathes = pathes.split('\n')
-    pathes.remove('')
 
-    if pathes == "":
-     print("No valid manifest found! ")
+    if os.path.exists(project_path+'/.repo/manifest.xml'):
+     cut_str ="|cut -d '\"' -f2"
+     cmd = 'cat .repo/manifest.xml' + '|grep project' + "|awk {'print $2'}"  + cut_str
+     pathes = os.popen(cmd).read()
+     pathes = pathes.split('\n')
+     pathes.remove('')
+    else:
+     print("can't find the manifest config file, find the git project directly!")
+     cmd = 'find ' +project_path + ' -name "*.git"' + "|sed 's/\.git//g'"
+     pathes = os.popen(cmd).read()
+     pathes = pathes.split('\n')
+     pathes.remove('')
+     #sys.exit(0)
+
+    if pathes.__len__() == 0:
+     print("No valid git project found! ")
      sys.exit(0)
 
     for gdir in pathes:
@@ -113,7 +126,8 @@ def main(orig_args):
         authors.remove('')
         authors_num = authors.__len__()
         if authors_num < 1:
-         bcolors.printWarning("No bady commit since "+since_date+" @ ")
+         bcolors.printDir(gdir)
+         bcolors.printWarning("No developer commit since "+since_date)
          print("")
          os.chdir(project_path)
          continue
